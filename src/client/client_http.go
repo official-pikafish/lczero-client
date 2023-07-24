@@ -83,8 +83,9 @@ type NextGameResponse struct {
 	Sha          string
 	CandidateSha string
 	Params       string
-	Flip         bool
-	MatchGameId  uint
+	Flip1        bool
+	MatchGameId1 uint
+	MatchGameId2 uint
 	KeepTime     string
 	BookUrl      string
 	BookSha      string
@@ -101,10 +102,13 @@ func NextGame(httpClient *http.Client, hostname string, params map[string]string
 	return resp, err
 }
 
-func UploadMatchResult(httpClient *http.Client, hostname string, match_game_id uint, result int, pgn string, params map[string]string) error {
-	params["match_game_id"] = strconv.Itoa(int(match_game_id))
-	params["result"] = strconv.Itoa(result)
-	params["pgn"] = pgn
+func UploadMatchResult(httpClient *http.Client, hostname string, match_game_id1 uint, result1 int, pgn1 string, match_game_id2 uint, result2 int, pgn2 string, params map[string]string) error {
+	params["match_game_id1"] = strconv.Itoa(int(match_game_id1))
+	params["result1"] = strconv.Itoa(result1)
+	params["pgn1"] = pgn1
+	params["match_game_id2"] = strconv.Itoa(int(match_game_id2))
+	params["result2"] = strconv.Itoa(result2)
+	params["pgn2"] = pgn2
 	return postParams(httpClient, hostname+"/match_result", params, nil)
 }
 

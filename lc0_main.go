@@ -49,12 +49,13 @@ var (
 	testedDxNet     string
 
 	lc0Exe           = "lc0"
+	exename          = flag.String("exename", "lc0", "Binary file name")
 	defaultLocalHost = "Unknown"
 	gpuType          = "Unknown"
 
 	localHost     = flag.String("localhost", "", "Localhost name to send to the server when reporting\n(defaults to Unknown, overridden by the configuration file)")
-	hostname      = flag.String("hostname", "http://api.lczero.org", "Address of the server")
-	networkMirror = flag.String("network-mirror", "", "Alternative url prefix to download networks from.")
+	hostname      = flag.String("hostname", "https://px0.org", "Address of the server")
+	networkMirror = flag.String("network-mirror", "https://github.com/official-pikafish/pxzero-networks/releases/download/px0_client/", "Alternative url prefix to download networks from.")
 	user          = flag.String("user", "", "Username")
 	password      = flag.String("password", "", "Password")
 	gpu           = flag.Int("gpu", -1, "GPU to use (ignored if --backend-opts used)")
@@ -69,8 +70,8 @@ var (
 	keep          = flag.Bool("keep", false, "Do not delete old network files")
 	version       = flag.Bool("version", false, "Print version and exit.")
 	trainOnly     = flag.Bool("train-only", false, "Do not play match games")
-	report_host   = flag.Bool("report-host", false, "Send hostname to server for more fine-grained statistics")
-	report_gpu    = flag.Bool("report-gpu", false, "Send gpu info to server for more fine-grained statistics")
+	report_host   = flag.Bool("report-host", true, "Send hostname to server for more fine-grained statistics")
+	report_gpu    = flag.Bool("report-gpu", true, "Send gpu info to server for more fine-grained statistics")
 	cudnn         = flag.Bool("cudnn", true, "Prefer the cudnn backend (if available)")
 	settingsPath  = flag.String("config", "", "JSON configuration file to use")
 )
@@ -239,6 +240,7 @@ func (c *cmdWrapper) openInput() {
 }
 
 func convertMovesToPGN(moves []string, result string, start_ply_count int) string {
+      return ""
 	game := chess.NewGame(chess.UseNotation(chess.LongAlgebraicNotation{}))
 	if len(moves) > 6 && moves[len(moves)-7] == "from_fen" {
 		fen := strings.Join(moves[len(moves)-6:], " ")
@@ -488,7 +490,7 @@ func (c *cmdWrapper) launch(networkPath string, otherNetPath string, args []stri
 			case strings.HasPrefix(line, "bestmove "):
 				//				fmt.Println(line)
 				c.BestMove <- strings.Split(line, " ")[1]
-			case strings.HasPrefix(line, "id name Lc0 "):
+			case strings.HasPrefix(line, "id name Px0 "):
 				c.Version = strings.Split(line, " ")[3]
 				fmt.Println(line)
 			case strings.HasPrefix(line, "info"):
@@ -592,24 +594,26 @@ func playMatch(httpClient *http.Client, ngr client.NextGameResponse, baselinePat
 				}
 				for true {
 					if curng != nil {
-						if curng.Flip && len(flipped) > 0 {
-							l := len(flipped)
-							nextgi := flipped[l-1]
-							flipped = flipped[:l-1]
-							log.Println("uploading match result")
-							extraParams := getExtraParams()
-							extraParams["engineVersion"] = c.Version
-							client.UploadMatchResult(httpClient, *hostname, curng.MatchGameId, -resultToNum(nextgi.result), nextgi.pgn, extraParams)
-							log.Println("uploaded")
-							curng = nil
-						} else if !curng.Flip && len(normal) > 0 {
-							l := len(normal)
-							nextgi := normal[l-1]
-							normal = normal[:l-1]
-							log.Println("uploading match result")
-							extraParams := getExtraParams()
-							extraParams["engineVersion"] = c.Version
-							client.UploadMatchResult(httpClient, *hostname, curng.MatchGameId, resultToNum(nextgi.result), nextgi.pgn, extraParams)
+						if (len(flipped) > 0) && len(normal) > 0 {
+							if curng.Flip1 {
+								nextgi1 := flipped[0]
+								flipped = flipped[1:len(flipped)]
+								nextgi2 := normal[0]
+								normal = normal[1:len(normal)]
+								log.Println("uploading match result")
+								extraParams := getExtraParams()
+								extraParams["engineVersion"] = c.Version
+								client.UploadMatchResult(httpClient, *hostname, curng.MatchGameId1, -resultToNum(nextgi1.result), nextgi1.pgn, curng.MatchGameId2, resultToNum(nextgi2.result), nextgi2.pgn, extraParams)
+							} else {
+								nextgi1 := normal[0]
+								normal = normal[1:len(normal)]
+								nextgi2 := flipped[0]
+								flipped = flipped[1:len(flipped)]
+								log.Println("uploading match result")
+								extraParams := getExtraParams()
+								extraParams["engineVersion"] = c.Version
+								client.UploadMatchResult(httpClient, *hostname, curng.MatchGameId1, resultToNum(nextgi1.result), nextgi1.pgn, curng.MatchGameId2, -resultToNum(nextgi2.result), nextgi2.pgn, extraParams)
+							}
 							log.Println("uploaded")
 							curng = nil
 						}
@@ -1142,6 +1146,7 @@ func main() {
 
 	hideLc0argsFlag()
 	flag.Parse()
+        lc0Exe = *exename
 
 	if *version {
 		return
